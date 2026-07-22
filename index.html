@@ -443,12 +443,12 @@
     position:fixed; inset:0; z-index:9999;
     background:var(--bg);
     display:flex; align-items:center; justify-content:center;
-    transition:opacity .45s ease;
+    transition:opacity 2s ease;
   }
   #appSplash.is-hidden{ opacity:0; pointer-events:none; }
   #appSplash .splash-mark{
     width:104px; height:104px;
-    animation:splashPop .6s cubic-bezier(.22,.9,.32,1) both;
+    animation:splashPop 2s cubic-bezier(.22,.9,.32,3) both;
   }
   @keyframes splashPop{
     0%{ opacity:0; transform:scale(.7); }
