@@ -325,6 +325,31 @@
     font-family:var(--font-mono); font-size:12px; color:var(--text-mute);
   }
 
+  .remaining-total{
+    margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    font-size:12.5px; color:var(--text-mute);
+  }
+  .remaining-total b{
+    font-family:var(--font-mono); font-size:15px; font-weight:700; color:var(--gold-soft);
+    white-space:nowrap;
+  }
+
+  .link-toggle-row{
+    margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .link-toggle-row .check-row{ flex:1 1 auto; min-width:0; }
+  .link-badge{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:11px; font-weight:700;
+    padding:4px 11px; border-radius:999px; white-space:nowrap;
+    background:rgba(201,162,39,.16); color:var(--gold-soft); border:1px solid var(--gold-deep);
+  }
+  .link-badge.off{
+    background:rgba(138,58,42,.18); color:#e8a58f; border-color:var(--error);
+  }
+  .lines-manual-wrap{ margin-top:12px; }
+
   .summary-strip{
     display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:22px;
   }
@@ -603,7 +628,7 @@
         <div class="field">
           <label for="inLinesAvg">متوسط السطور المستهدف / فاتورة</label>
           <input type="number" id="inLinesAvg" min="0" step="0.1" value="5">
-          <div class="hint">هيتحسب هدف السطور اليومي على أساس هدف الزيارات الفعالة اليومي (كل زيارة فعالة = فاتورة متوقعة).</div>
+       
         </div>
         <div class="field">
           <label for="inRepCode">كود المندوب</label>
@@ -704,7 +729,10 @@
           <label for="inLinesRateNow">معدل السطور الحالي / فاتورة</label>
           <input type="number" id="inLinesRateNow" min="0" step="0.01">
         </div>
-        
+        <div class="hint">
+          هدف الزيارات الفعالة يُحسب من "محقق عدد الزيارات الفعالة"، وهدف السطور يُحسب من "عدد الفواتير الصادرة" — كل واحد بيتحسب من رقمه الحقيقي المنفصل بدل ما يشتركوا في نفس الرقم.<br>
+          معدل السطور الحالي = إجمالي عدد السطور ÷ عدد الفواتير الصادرة حتى الآن.
+        </div>
       </div>
     </div>
 
@@ -738,6 +766,7 @@
             <div class="k-caption">المطلوب تحقيقه ماليًا كل يوم عمل متبقي حتى نهاية الشهر.</div>
           </div>
         </div>
+        <div class="remaining-total"><span>المتبقي الكلي حتى نهاية الشهر</span><b id="remFin">—</b></div>
         <div class="formula-line" id="formFin">—</div>
       </div>
 
@@ -750,6 +779,7 @@
             <div class="k-caption">عدد العملاء الجدد المطلوب التعامل معهم كل يوم عمل متبقي.</div>
           </div>
         </div>
+        <div class="remaining-total"><span>المتبقي الكلي حتى نهاية الشهر</span><b id="remCust">—</b></div>
         <div class="formula-line" id="formCust">—</div>
       </div>
 
@@ -762,6 +792,7 @@
             <div class="k-caption">بافتراض أن 50% فقط من الزيارات المجدولة تتحول لزيارة فعالة.</div>
           </div>
         </div>
+        <div class="remaining-total"><span>المتبقي الكلي (زيارات فعالة) حتى نهاية الشهر</span><b id="remVisit">—</b></div>
         <div class="formula-line" id="formVisit">—</div>
       </div>
 
@@ -774,6 +805,24 @@
             <div class="k-caption">عدد السطور المطلوبة في كل فاتورة متبقية لتحقيق متوسط المستهدف.</div>
           </div>
         </div>
+        <div class="remaining-total"><span>إجمالي السطور الإضافية المطلوبة</span><b id="remLines">—</b></div>
+
+        <div class="link-toggle-row">
+          <label class="check-row" for="inLinesAutoLink">
+            <input type="checkbox" id="inLinesAutoLink" checked>
+            <span>ربط تلقائي بعدد الفواتير المتبقية المتوقع من الزيارات الفعالة</span>
+          </label>
+          <span class="link-badge" id="linesLinkBadge">✓ مرتبط</span>
+        </div>
+
+        <div class="manual-fields lines-manual-wrap" id="linesManualWrap">
+          <div class="field">
+            <label for="inRemInvoicesManual">عدد الفواتير المتبقية المتوقعة (تُدخل يدويًا)</label>
+            <input type="number" id="inRemInvoicesManual" min="0" step="0.1" placeholder="مثال: 40">
+            <div class="hint">لما يبقى الربط متوقف، هدف السطور هيتحسب بس من: عدد الفواتير الصادرة + معدل السطور الحالي (تبويب ٢) والرقم اللي هتكتبه هنا — من غير أي علاقة بخط السير أو الزيارات.</div>
+          </div>
+        </div>
+
         <div class="formula-line" id="formLines">—</div>
       </div>
     </div>
@@ -917,6 +966,26 @@
   }
   $('inMonth').addEventListener('input', syncDateDisplays);
   $('inToday').addEventListener('input', syncDateDisplays);
+
+  // ---------- lines card: auto-link toggle ----------
+  // Checked (default): the "remaining invoices" figure used for the lines KPI comes
+  // automatically from the remaining effective visits (computed from the route file).
+  // Unchecked: the lines KPI ignores visits/route entirely and becomes a small
+  // standalone calculator driven only by a manually-entered "remaining invoices" count.
+  function updateLinesLinkUI(){
+    const linked = $('inLinesAutoLink').checked;
+    $('linesManualWrap').classList.toggle('show', !linked);
+    const badge = $('linesLinkBadge');
+    badge.textContent = linked ? '✓ مرتبط' : '✗ غير مرتبط — حاسبة مستقلة';
+    badge.classList.toggle('off', !linked);
+  }
+  $('inLinesAutoLink').addEventListener('change', ()=>{
+    updateLinesLinkUI();
+    try{ calculate(); }catch(err){ console.error(err); }
+  });
+  $('inRemInvoicesManual').addEventListener('input', ()=>{
+    try{ calculate(); }catch(err){ console.error(err); }
+  });
 
   // ---------- tabs ----------
   const tabs = document.querySelectorAll('.tab-btn');
@@ -1410,7 +1479,9 @@
       visitsDone: numOr0($('inVisitsDone').value),
       effVisitsAchieved: numOr0($('inEffVisitsAchieved').value),
       invCount: numOr0($('inInvCount').value),
-      linesRateNow: numOr0($('inLinesRateNow').value)
+      linesRateNow: numOr0($('inLinesRateNow').value),
+      linesAutoLink: $('inLinesAutoLink').checked,
+      remInvoicesManual: numOr0($('inRemInvoicesManual').value)
     };
     const mode = await storeSet('kpi:daily', daily);
     if(mode === 'persistent'){
@@ -1424,13 +1495,16 @@
 
   async function loadDaily(){
     const d = await storeGet('kpi:daily');
-    if(!d) return;
+    if(!d){ updateLinesLinkUI(); return; }
     $('inFinAchieved').value = d.finAchieved || '';
     $('inCustAchieved').value = d.custAchieved || '';
     $('inVisitsDone').value = d.visitsDone || '';
     $('inEffVisitsAchieved').value = d.effVisitsAchieved || '';
     $('inInvCount').value = d.invCount || '';
     $('inLinesRateNow').value = d.linesRateNow || '';
+    $('inLinesAutoLink').checked = d.linesAutoLink !== false;
+    $('inRemInvoicesManual').value = d.remInvoicesManual || '';
+    updateLinesLinkUI();
   }
 
   $('btnSaveSettings').addEventListener('click', saveSettings);
@@ -1521,69 +1595,87 @@
     $('chipWorkDays').textContent = fmt(remWD);
     $('chipVisits').textContent = fmt(remVisits);
 
-    // 1. financial
+    // 1. financial — remaining-total is shown regardless of remWD; the per-day figure
+    // additionally needs remWD > 0 to divide by.
+    const finRemaining = Math.max(finTarget - finAchieved, 0);
+    $('remFin').textContent = fmt(finRemaining);
     if(remWD <= 0){
       $('numFin').innerHTML = '—';
       $('formFin').innerHTML = '<span class="empty-note">لا توجد أيام عمل متبقية بالشهر</span>';
     }else{
-      const remaining = Math.max(finTarget - finAchieved, 0);
-      const perDay = remaining / remWD;
+      const perDay = finRemaining / remWD;
       $('numFin').textContent = fmt(perDay);
       $('formFin').textContent = `(${fmt(finTarget)} − ${fmt(finAchieved)}) ÷ ${fmt(remWD)} يوم = ${fmt(perDay)} جنيه/يوم`;
-      setStampState($('stampFin'), finAchieved >= finTarget && finTarget>0);
     }
+    setStampState($('stampFin'), finAchieved >= finTarget && finTarget>0);
 
     // 2. customers
+    const custRemaining = Math.max(custTarget - custAchieved, 0);
+    $('remCust').textContent = fmt(custRemaining,1);
     if(remWD <= 0){
       $('numCust').innerHTML = '—';
       $('formCust').innerHTML = '<span class="empty-note">لا توجد أيام عمل متبقية بالشهر</span>';
     }else{
-      const remaining = Math.max(custTarget - custAchieved, 0);
-      const perDay = remaining / remWD;
+      const perDay = custRemaining / remWD;
       $('numCust').textContent = fmt(perDay,1);
       $('formCust').textContent = `(${fmt(custTarget)} − ${fmt(custAchieved)}) ÷ ${fmt(remWD)} يوم = ${fmt(perDay,1)} عميل/يوم`;
-      setStampState($('stampCust'), custAchieved >= custTarget && custTarget>0);
     }
+    setStampState($('stampCust'), custAchieved >= custTarget && custTarget>0);
 
-    // 3. visits (50%) — remainingEffective (monthly remaining effective visits) is reused by the lines KPI below.
-    // Uses "محقق عدد الزيارات الفعالة" (effVisitsAchieved) — a real reported figure — instead of
-    // invoice count, since invoices and effective visits are different KPIs and shouldn't share a number.
-    let todayVisitsTarget = null;
+    // 3. visits (50%) — remainingEffective (total remaining effective visits for the month)
+    // is shown as "المتبقي الكلي" here, and is also reused by the lines KPI below when
+    // the auto-link toggle is on. Uses "محقق عدد الزيارات الفعالة" (effVisitsAchieved) —
+    // a real reported figure — instead of invoice count, since invoices and effective
+    // visits are different KPIs and shouldn't share a number.
     let remainingEffective = null;
-    if(remWD <= 0){
+    if(routeData.totalVisits===null){
       $('numVisit').innerHTML = '—';
-      $('formVisit').innerHTML = '<span class="empty-note">لا توجد أيام عمل متبقية بالشهر</span>';
-    }else if(routeData.totalVisits===null){
-      $('numVisit').innerHTML = '—';
+      $('remVisit').textContent = '—';
       $('formVisit').innerHTML = '<span class="empty-note">ارفع خط السير أو أدخل الزيارات يدويًا</span>';
     }else{
       const monthEffectiveTarget = (remVisits + visitsDone) * 0.5;
       remainingEffective = Math.max(monthEffectiveTarget - effVisitsAchieved, 0);
-      todayVisitsTarget = remainingEffective / remWD;
-      $('numVisit').textContent = fmt(todayVisitsTarget,1);
-      $('formVisit').textContent = `[(${fmt(remVisits)} متبقية + ${fmt(visitsDone)} تمت) × 50% = ${fmt(monthEffectiveTarget,1)}] − ${fmt(effVisitsAchieved)} محقق فعليًا = ${fmt(remainingEffective,1)} ÷ ${fmt(remWD)} يوم = ${fmt(todayVisitsTarget,1)} زيارة/يوم`;
+      $('remVisit').textContent = fmt(remainingEffective,1);
+      if(remWD <= 0){
+        $('numVisit').innerHTML = '—';
+        $('formVisit').innerHTML = '<span class="empty-note">لا توجد أيام عمل متبقية بالشهر</span>';
+      }else{
+        const todayVisitsTarget = remainingEffective / remWD;
+        $('numVisit').textContent = fmt(todayVisitsTarget,1);
+        $('formVisit').textContent = `[(${fmt(remVisits)} متبقية + ${fmt(visitsDone)} تمت) × 50% = ${fmt(monthEffectiveTarget,1)}] − ${fmt(effVisitsAchieved)} محقق فعليًا = ${fmt(remainingEffective,1)} ÷ ${fmt(remWD)} يوم = ${fmt(todayVisitsTarget,1)} زيارة/يوم`;
+      }
     }
 
-    // 4. lines — needed lines per invoice across ALL remaining effective invoices this month
+    // 4. lines — needed lines per invoice across ALL remaining invoices this month
     // (not per-day) so the overall monthly average reaches linesAvg.
-    // Base is "إجمالي عدد الفواتير الصادرة" (invCount) — its own real figure — plus the
-    // remaining effective visits (from KPI 3) as the estimate of additional invoices to come.
-    // targetTotalLines = linesAvg * (invCount + remainingEffective)
+    // Base is "إجمالي عدد الفواتير الصادرة" (invCount) — its own real figure — plus a
+    // remaining-invoices figure that comes from ONE of two sources depending on the
+    // auto-link toggle:
+    //   - linked (default): remainingEffective from KPI 3 (estimated from the route/visits)
+    //   - unlinked: a manually-entered "عدد الفواتير المتبقية" — turns this card into a
+    //     small standalone calculator with no dependency on visits or the route file at all.
+    // targetTotalLines = linesAvg * (invCount + remainingInvoices)
     // neededLines = targetTotalLines - (linesRateNow * invCount)
-    // perInvoice = neededLines / remainingEffective
-    if(remainingEffective===null){
+    // perInvoice = neededLines / remainingInvoices
+    const linesLinked = $('inLinesAutoLink').checked;
+    const remainingInvoices = linesLinked ? remainingEffective : numOr0($('inRemInvoicesManual').value);
+
+    if(remainingInvoices===null){
       $('numLines').innerHTML = '—';
-      $('formLines').innerHTML = '<span class="empty-note">لازم يتحسب هدف الزيارات الفعالة أولًا (خط السير)</span>';
-    }else if(remainingEffective <= 0){
+      $('remLines').textContent = '—';
+      $('formLines').innerHTML = '<span class="empty-note">لازم يتحسب هدف الزيارات الفعالة أولًا (خط السير) — أو أوقف الربط وادخل عدد الفواتير المتبقية يدويًا</span>';
+    }else if(remainingInvoices <= 0){
       $('numLines').innerHTML = '—';
+      $('remLines').textContent = fmt(0);
       $('formLines').innerHTML = '<span class="empty-note">مفيش فواتير متبقية متوقعة هذا الشهر</span>';
     }else{
       const currentTotalLines = linesRateNow * invCount;
-      const targetTotalLines = linesAvg * (invCount + remainingEffective);
-      const neededLines = targetTotalLines - currentTotalLines;
-      const perInvoice = neededLines / remainingEffective;
+      const targetTotalLines = linesAvg * (invCount + remainingInvoices);
+      const neededLines = Math.max(targetTotalLines - currentTotalLines, 0);
+      const perInvoice = neededLines / remainingInvoices;
       $('numLines').textContent = fmt(perInvoice,2);
-      $('formLines').textContent = `[(${fmt(invCount)} + ${fmt(remainingEffective,1)}) × ${fmt(linesAvg,1)} = ${fmt(targetTotalLines,0)}] − ${fmt(currentTotalLines,0)} محقق = ${fmt(neededLines,0)} ÷ ${fmt(remainingEffective,1)} فاتورة متبقية = ${fmt(perInvoice,2)} سطر/فاتورة`;
+      $('remLines').textContent = fmt(neededLines,0);
+      $('formLines').textContent = `[(${fmt(invCount)} + ${fmt(remainingInvoices,1)}) × ${fmt(linesAvg,1)} = ${fmt(targetTotalLines,0)}] − ${fmt(currentTotalLines,0)} محقق = ${fmt(neededLines,0)} ÷ ${fmt(remainingInvoices,1)} فاتورة متبقية = ${fmt(perInvoice,2)} سطر/فاتورة`;
       setStampState($('stampLines'), perInvoice<=linesAvg);
     }
   }
