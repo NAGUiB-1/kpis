@@ -265,6 +265,9 @@
   .row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-bottom:12px; }
   .row-2:last-child{ margin-bottom:0; }
   .row-2 .field{ margin-bottom:0; }
+  .rep-code-row{ display:flex; gap:8px; align-items:stretch; }
+  .rep-code-row input{ flex:1 1 auto; min-width:0; }
+  .rep-code-row .btn{ flex:0 0 auto; padding:0 14px; white-space:nowrap; }
 
   .btn{
     font-family:var(--font-body); font-weight:600; font-size:13.5px;
@@ -456,6 +459,7 @@
     .btn{ width:100%; text-align:center; }
     .btn-row{ flex-direction:column; }
     .btn-row .btn{ flex:1 1 auto; }
+    .rep-code-row .btn{ width:auto; }
 
     .upload-zone{ padding:12px 11px; gap:10px; }
     .upload-zone .u-icon{ width:36px; height:36px; font-size:17px; border-radius:9px; }
@@ -757,7 +761,6 @@
               <span class="date-display-icon">📅</span>
             </div>
           </div>
-          <div class="hint">هيبقى ده الأساس لحساب أيام العمل المتبقية.</div>
         </div>
         <div class="check-row">
           <input type="checkbox" id="inIncludeToday" checked>
@@ -782,8 +785,10 @@
         </div>
         <div class="field">
           <label for="inRepCode">كود المندوب</label>
-          <input type="text" id="inRepCode" inputmode="numeric" placeholder="مثال: 90248681">
-          <div class="hint">يُستخدم لاختيار صفك تلقائيًا عند رفع ملف KPIs بصيغة PDF من الشركة.</div>
+          <div class="rep-code-row">
+            <input type="text" id="inRepCode" inputmode="numeric" placeholder="مثال: 90248681">
+            <button type="button" class="btn btn-dark btn-sm" id="btnRepCodeSearch" title="إعادة البحث في ملف خط السير المرفوع">🔍 بحث</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1268,6 +1273,11 @@
 
   // ---------- route excel parsing ----------
   let routeData = { totalVisits:null, remainingVisits:null, mode:'excel', fileName:null };
+  // Keeps the raw parsed rows of the last route file the user uploaded (before
+  // any rep-code filtering), so re-typing a different code and hitting Enter /
+  // the search button can re-filter instantly without asking them to re-upload.
+  let lastRouteRawRows = null;
+  let lastRouteFileName = null;
 
   const DAY_MAP = { Saturday:6, Sunday:0, Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5 };
 
@@ -1382,6 +1392,32 @@
       if(k) dayKeys[d] = k;
     });
 
+    // Normalizes a rep-code value for comparison: stringify, trim, and drop
+    // leading zeros — Excel often stores a code like "090248681" as the plain
+    // number 90248681 (no leading zero), which would otherwise never match
+    // what the user typed into "كود المندوب".
+    const normCode = v => (v===null || v===undefined) ? '' : String(v).trim().replace(/^0+(?=\d)/, '');
+    const repCode = $('inRepCode').value.trim();
+
+    // Tries to find which column holds the rep/salesman code. First by a
+    // recognizable header name; if that fails but a rep code was actually
+    // entered, fall back to scanning every column's values for that exact
+    // code — this still lets us filter correctly even when the sheet names
+    // the column something we don't recognize, instead of silently giving up
+    // and importing every rep's rows mixed together.
+    function findRepIdKey(){
+      let k = keys.find(kk => /كود.*مندوب|مندوب.*كود|salesman|rep.*code|repcode/i.test(kk));
+      if(k) return k;
+      if(!repCode) return null;
+      const target = normCode(repCode);
+      return keys.find(kk => rawRows.some(raw => normCode(normalizeRow(raw)[kk]) === target)) || null;
+    }
+    const repIdKeyGlobal = findRepIdKey();
+    if(repCode && !repIdKeyGlobal){
+      toast('مقدرتش ألاقي عمود كود المندوب أو الكود "' + repCode + '" في هذا الملف — اتأكد من الكود أو من الملف، أو اتركه فاضي لو الملف خاص بمندوب واحد بس');
+      return false;
+    }
+
     if(Object.keys(dayKeys).length >= 5){
       // real format: one row per customer, day-of-week flag columns + total visits + week group
       // Supports both the Arabic export ("اجمالي عدد الزيارات للعميل" / "أسبوع الزياره") and
@@ -1391,8 +1427,7 @@
       const customerKey = keys.find(k => /كود العميل|كود.*عميل/i.test(k))
                         || keys.find(k => /اسم العميل|اسم.*عميل/i.test(k))
                         || keys.find(k => /customer.*id|^customerid$/i.test(k));
-      const repIdKey = keys.find(k => /كود المندوب|salesman.*id|^salesmanid$|rep.*code/i.test(k));
-      const repCode = $('inRepCode').value.trim();
+      const repIdKey = repIdKeyGlobal;
 
       let allDates = [];
       let customersCount = 0;
@@ -1401,7 +1436,7 @@
         if(customerKey && (r[customerKey]===null || r[customerKey]===undefined || r[customerKey]==='')) return;
         // If the sheet mixes several reps (has a salesman-id column) and a rep code is set
         // in the settings tab, keep only that rep's rows so one master file works for everyone.
-        if(repIdKey && repCode && String(r[repIdKey]).trim() !== repCode) return;
+        if(repIdKey && repCode && normCode(r[repIdKey]) !== normCode(repCode)) return;
         let weekdayJS = null;
         for(const dayName in DAY_MAP){
           const colKey = dayKeys[dayName];
@@ -1432,6 +1467,13 @@
         customersCount++;
       });
 
+      // A rep code was entered but not a single row matched it — this must not
+      // silently fall through to showing whatever was in the file; the whole
+      // point is that a wrong/absent code should produce nothing.
+      if(repCode && customersCount === 0){
+        toast('كود المندوب "' + repCode + '" مش موجود في هذا الملف');
+        return false;
+      }
       if(!allDates.length){ toast('لقيت أعمدة الأيام بس ملقتش زيارات صالحة — راجع الملف'); return false; }
 
       const total = allDates.length;
@@ -1449,7 +1491,15 @@
     // fallback: plain "date per visit row" format
     const dateKey = findDateKey(sample);
     if(!dateKey){ toast('لم أتعرف على شكل الملف — محتاج أعمدة أيام الأسبوع أو عمود تاريخ'); return false; }
-    const dates = rawRows.map(r=>{
+    const repIdKey = repIdKeyGlobal;
+    const filteredRows = (repIdKey && repCode)
+      ? rawRows.filter(raw => normCode(normalizeRow(raw)[repIdKey]) === normCode(repCode))
+      : rawRows;
+    if(repCode && filteredRows.length === 0){
+      toast('كود المندوب "' + repCode + '" مش موجود في هذا الملف');
+      return false;
+    }
+    const dates = filteredRows.map(r=>{
       let v = normalizeRow(r)[dateKey];
       if(v instanceof Date) return v;
       if(typeof v === 'number') return new Date(Math.round((v-25569)*86400*1000));
@@ -1484,6 +1534,8 @@
       reader.onload = function(evt){
         try{
           const rawRows = parseCSV(evt.target.result);
+          lastRouteRawRows = rawRows;
+          lastRouteFileName = file.name;
           analyzeRouteRows(rawRows, file.name);
         }catch(err){
           console.error(err);
@@ -1505,6 +1557,8 @@
         const wb = XLSX.read(evt.target.result, {type:'array', cellDates:true});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+        lastRouteRawRows = rawRows;
+        lastRouteFileName = file.name;
         analyzeRouteRows(rawRows, file.name);
       }catch(err){
         console.error(err);
@@ -1513,6 +1567,24 @@
     };
     reader.readAsArrayBuffer(file);
   }
+
+  // Re-runs the route-file analysis against whatever was last uploaded, using
+  // the rep code currently typed in the field — so switching codes doesn't
+  // require re-uploading the file every time.
+  function reSearchRepCode(){
+    if(!lastRouteRawRows){
+      toast('ارفع ملف خط السير الأول، وبعدين اضغط بحث بالكود');
+      return;
+    }
+    analyzeRouteRows(lastRouteRawRows, lastRouteFileName);
+  }
+  $('btnRepCodeSearch').addEventListener('click', reSearchRepCode);
+  $('inRepCode').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      reSearchRepCode();
+    }
+  });
 
   function renderRouteSummary(){
     const box = $('routeSummary');
