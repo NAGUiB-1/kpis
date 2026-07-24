@@ -9,16 +9,24 @@
 //
 // Bump CACHE_NAME whenever you change this file or want to force clients to refresh
 // their cached app shell.
-const CACHE_NAME = 'kpi-targets-cache-v1';
+const CACHE_NAME = 'kpi-targets-cache-v2';
 
 // Known third-party assets to warm the cache with as soon as the SW installs,
 // so the very first offline run (even before the user has revisited every tab)
 // already has them available.
+//
+// IMPORTANT: this list must be kept in sync with whatever <script>/<link> tags
+// the HTML actually loads from CDNs/Google Fonts. If a tag is added to the page
+// (like gsap.min.js was) or a font's weight list changes, the *exact* URL has to
+// be added/updated here too — the runtime fetch handler below will still cache
+// things the first time they're requested online, but that doesn't help the very
+// first offline run before that happens, which is the whole point of precaching.
 const PRECACHE_URLS = [
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-  'https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap'
+  'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js',
+  'https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
