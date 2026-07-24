@@ -31,6 +31,13 @@
     --gold:#1b2321;
     --gold-soft:#3a453f;
     --gold-deep:#0f1513;
+    /* --gold above is actually the same dark charcoal as --text (kept as-is so
+       borders/labels that already use it don't shift). For anything that's
+       specifically meant to stand out — the primary save buttons, the "saved"
+       status — that dark-on-dark doesn't work, so this is a real, distinct
+       amber accent used only for those spots. */
+    --accent:#caa051;
+    --accent-strong:#b6863a;
     --error:#b23b2e;
     --radius-card:14px;
     --shadow-1: 0 10px 30px -14px rgba(27,35,33,.22);
@@ -74,6 +81,11 @@
   header .brand-eyebrow{ color:#cfc8ab; }
   header .chip{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.14); color:#f3efe0; }
   header .chip b{ color:#f3efe0; }
+  /* The "آخر حفظ" chip is marked .ok so it stands out from the plain info chips
+     next to it — give it its own background/border tint too, not just text
+     color, since text-color alone was getting overridden to the same dark
+     charcoal as the header background (effectively invisible). */
+  header .chip.ok{ background:rgba(202,160,81,.16); border-color:rgba(202,160,81,.55); }
   .head-row{
     display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
     max-width:960px; margin:0 auto; padding-bottom:14px;
@@ -96,7 +108,8 @@
     display:flex; align-items:center; gap:6px;
   }
   .chip b{ font-family:var(--font-body); font-weight:600; color:var(--gold); }
-  .chip.ok b{ color:var(--gold); }
+  .chip.ok b{ color:var(--accent-strong); font-weight:700; }
+  header .chip.ok b{ color:var(--accent); }
 
   /* tabs — one look, no per-tab color drift.
      Previously this used position:relative + a manual top offset to make the tab
@@ -107,13 +120,28 @@
      causing the tabs to flicker, double-render, or look "cut". Keeping the tab bar
      fully inside the header's normal flow avoids that entirely. */
   .tabs{
+    position:relative;
     max-width:960px; margin:0 auto; display:flex; gap:4px;
     background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
     border-radius:10px; padding:4px;
     overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   }
   .tabs::-webkit-scrollbar{ display:none; }
+  /* Sliding pill behind the active tab — position/size are set in JS (from the
+     active button's own offsetTop/Left/width/height) rather than fixed CSS
+     numbers, so it lines up correctly regardless of the padding overrides
+     further down this stylesheet. GSAP animates it between tabs; see script. */
+  .tab-indicator{
+    position:absolute;
+    top:0; left:0; width:0; height:0;
+    background:#f3efe0;
+    border-radius:9px;
+    box-shadow:0 2px 8px -2px rgba(0,0,0,.25);
+    z-index:0;
+    pointer-events:none;
+  }
   .tab-btn{
+    position:relative; z-index:1;
     flex:0 0 auto; border:none; background:transparent; color:#cfc8ab;
     font-family:var(--font-body); font-weight:600; font-size:13px; white-space:nowrap;
     padding:11px 14px; border-radius:9px; cursor:pointer;
@@ -123,15 +151,23 @@
     .tab-btn{ flex:1; text-align:center; }
   }
   .tab-btn[aria-selected="true"]{
-    background:#f3efe0; color:var(--gold-deep);
+    background:transparent; color:var(--gold-deep);
   }
   .tab-btn:not([aria-selected="true"]):hover{ background:rgba(255,255,255,.14); color:#f3efe0; }
 
   main{
+    position:relative;
     max-width:960px; margin:0 auto; padding:34px clamp(14px,4vw,32px) 90px;
   }
-  .panel{ display:none; animation:fade .25s ease; }
+  /* Base show/hide only. The professional crossfade itself is done by GSAP in
+     script (see "tabs" section) — it sets opacity/transform inline every frame,
+     and a *running* CSS @keyframes animation on the same properties would fight
+     those inline values each frame (CSS animations win that fight, causing
+     flicker/tearing). So `.fallback-fade` is a separate opt-in class, only ever
+     added by the JS fallback path used when GSAP itself failed to load. */
+  .panel{ display:none; }
   .panel.active{ display:block; }
+  .panel.active.fallback-fade{ animation:fade .25s ease; }
   @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
 
   .section-title{
@@ -226,7 +262,9 @@
   }
   input[type=checkbox]{ width:16px; height:16px; accent-color:var(--gold); vertical-align:middle; }
   .check-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-mute); }
-  .row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+  .row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-bottom:12px; }
+  .row-2:last-child{ margin-bottom:0; }
+  .row-2 .field{ margin-bottom:0; }
 
   .btn{
     font-family:var(--font-body); font-weight:600; font-size:13.5px;
@@ -234,8 +272,11 @@
     transition:transform .12s ease, filter .12s ease;
   }
   .btn:active{ transform:scale(.97); }
-  .btn-amber{ background:var(--gold); color:#ffffff; }
-  .btn-amber:hover{ filter:brightness(1.08); }
+  .btn-amber{
+    background:var(--accent); color:var(--gold-deep); font-weight:700;
+    box-shadow:0 6px 16px -6px rgba(202,160,81,.6);
+  }
+  .btn-amber:hover{ background:var(--accent-strong); filter:none; }
   .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--text-mute); }
   .btn-dark{ background:var(--panel-2); color:var(--text); border:1px solid var(--line); }
   .btn-dark:hover{ background:var(--panel-3); }
@@ -681,6 +722,7 @@
     </div>
   </div>
   <nav class="tabs" role="tablist">
+    <span class="tab-indicator" id="tabIndicator" aria-hidden="true"></span>
     <button class="tab-btn" data-tab="settings" role="tab" aria-selected="true">١. الإعدادات الثابتة</button>
     <button class="tab-btn" data-tab="daily" role="tab" aria-selected="false">٢. المحقق حتى الآن</button>
     <button class="tab-btn" data-tab="results" role="tab" aria-selected="false">٣. أهداف اليوم</button>
@@ -1094,16 +1136,112 @@
 
   // ---------- tabs ----------
   const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      tabs.forEach(b=> b.setAttribute('aria-selected', b===btn ? 'true':'false'));
-      document.querySelectorAll('.panel').forEach(p=> p.classList.remove('active'));
-      $('panel-'+btn.dataset.tab).classList.add('active');
+  const tabIndicator = $('tabIndicator');
+  const gsapReady = () => typeof gsap !== 'undefined' && !window.__gsapLoadFailed;
+
+  // Positions the sliding pill under a given tab button. Reads the button's own
+  // box (offsetLeft/Top/Width/Height) rather than hard-coded numbers, so it stays
+  // correct across the different padding rules and breakpoints in this stylesheet.
+  // `animate=false` is used for the very first paint and on resize, where a snap
+  // (not a slide) is what's wanted.
+  //
+  // The animated case is a "liquid" morph rather than a flat slide: the pill first
+  // stretches to bridge the old and new tab positions (like it's being dragged),
+  // then springs to settle exactly onto the new tab with a touch of overshoot —
+  // the same elastic feel used by segmented controls in modern native apps.
+  let indicatorBox = null;
+  function moveTabIndicator(btn, animate){
+    if(!tabIndicator || !btn) return;
+    const box = { left: btn.offsetLeft, top: btn.offsetTop, width: btn.offsetWidth, height: btn.offsetHeight };
+    if(!gsapReady()){
+      Object.assign(tabIndicator.style, { left:box.left+'px', top:box.top+'px', width:box.width+'px', height:box.height+'px' });
+      indicatorBox = box;
+      return;
+    }
+    if(!animate || !indicatorBox){
+      gsap.set(tabIndicator, box);
+      indicatorBox = box;
+      return;
+    }
+    const stretchLeft = Math.min(indicatorBox.left, box.left);
+    const stretchWidth = Math.max(indicatorBox.left + indicatorBox.width, box.left + box.width) - stretchLeft;
+    gsap.timeline()
+      .to(tabIndicator, { left:stretchLeft, width:stretchWidth, top:box.top, height:box.height, duration:.16, ease:'power2.out' })
+      .to(tabIndicator, { left:box.left, width:box.width, duration:.34, ease:'back.out(1.6)' }, '-=0.02');
+    indicatorBox = box;
+  }
+
+  // A proper overlapping crossfade between panels — the outgoing panel is pinned
+  // in place with position:absolute (so it can fade/scale out on its own timeline)
+  // while the incoming panel simultaneously takes over the normal document flow
+  // underneath it and animates in with a slight scale + slide + a quick stagger
+  // across its top-level cards. This avoids both the old instant-swap jump and the
+  // "fade out completely, then fade in" gap of a purely sequential transition.
+  let tabTransitionRunning = false;
+  function activateTab(btn){
+    if(tabTransitionRunning || btn.getAttribute('aria-selected') === 'true') return;
+    const currentBtn = document.querySelector('.tab-btn[aria-selected="true"]');
+    const currentPanel = document.querySelector('.panel.active');
+    const targetPanel = $('panel-'+btn.dataset.tab);
+    const goingForward = Array.from(tabs).indexOf(btn) > Array.from(tabs).indexOf(currentBtn);
+
+    tabs.forEach(b=> b.setAttribute('aria-selected', b===btn ? 'true':'false'));
+    moveTabIndicator(btn, true);
+
+    const runCalcIfResults = ()=>{
       if(btn.dataset.tab === 'results'){
         try{ calculate(); }catch(err){ console.error(err); toast('حصل خطأ في الحساب: ' + err.message); }
       }
+    };
+
+    // Fallback (GSAP unavailable): plain class swap + the CSS-only fade, no overlap.
+    if(!gsapReady() || !currentPanel){
+      if(currentPanel) currentPanel.classList.remove('active', 'fallback-fade');
+      targetPanel.classList.add('active', 'fallback-fade');
+      setTimeout(()=> targetPanel.classList.remove('fallback-fade'), 260);
+      runCalcIfResults();
+      return;
+    }
+
+    tabTransitionRunning = true;
+
+    // Freeze the outgoing panel exactly where it currently sits so it can be
+    // removed from the flow (letting the incoming panel take that space) while
+    // still fading out visually in the same spot.
+    const outRect = { top: currentPanel.offsetTop, left: currentPanel.offsetLeft, width: currentPanel.offsetWidth };
+    gsap.set(currentPanel, { position:'absolute', top:outRect.top, left:outRect.left, width:outRect.width, zIndex:2 });
+
+    targetPanel.classList.add('active');
+    gsap.set(targetPanel, { opacity:0, y: goingForward ? 22 : -22, scale:.97 });
+
+    const introCards = Array.from(targetPanel.children);
+
+    const tl = gsap.timeline({
+      onComplete: ()=>{
+        currentPanel.classList.remove('active');
+        gsap.set(currentPanel, { clearProps:'position,top,left,width,zIndex,opacity,x,y,scale' });
+        tabTransitionRunning = false;
+      }
     });
-  });
+
+    tl.to(currentPanel, { opacity:0, y: goingForward ? -16 : 16, scale:.96, duration:.26, ease:'power2.in' }, 0)
+      .to(targetPanel, { opacity:1, y:0, scale:1, duration:.46, ease:'expo.out' }, .08)
+      .from(introCards, { opacity:0, y:16, duration:.4, ease:'power2.out', stagger:.05, clearProps:'opacity,transform' }, .16);
+
+    runCalcIfResults();
+  }
+
+  tabs.forEach(btn=> btn.addEventListener('click', ()=> activateTab(btn)));
+
+  // Initial placement of the indicator (no animation), plus keep it aligned if
+  // the layout reflows — e.g. rotating the phone, or the tab bar wrapping at a
+  // different width breakpoint.
+  function snapIndicatorToActive(){
+    moveTabIndicator(document.querySelector('.tab-btn[aria-selected="true"]'), false);
+  }
+  window.addEventListener('load', snapIndicatorToActive);
+  window.addEventListener('resize', snapIndicatorToActive);
+  snapIndicatorToActive();
 
   // ---------- working days ----------
   function lastDayOfMonth(year, monthIdx0){ return new Date(year, monthIdx0+1, 0); }
